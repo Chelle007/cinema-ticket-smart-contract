@@ -1,0 +1,7 @@
+service: () -> {
+    addMovie: (text, int32, int32) -> (record {id:principal; name:text; availableSeats:int32; price:int32});
+    bookTicket: (principal, int32) -> (variant {Ok:record {id:principal; name:text; availableSeats:int32; price:int32}; Err:variant {MovieDoesNotExist:principal; NoAvailableSeat:text}});
+    deleteMovie: (principal) -> (variant {Ok:record {id:principal; name:text; availableSeats:int32; price:int32}; Err:variant {MovieDoesNotExist:principal; NoAvailableSeat:text}});
+    getMovieDetails: (principal) -> (opt record {id:principal; name:text; availableSeats:int32; price:int32}) query;
+    getMovieList: () -> (vec record {id:principal; name:text; availableSeats:int32; price:int32}) query;
+}
