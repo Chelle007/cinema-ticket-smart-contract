@@ -10,7 +10,7 @@
         "canister_call_set_message": "dfx canister call cinema_ticket_ICP setMessage '(\"Hello world!\")'"
     },
     "dependencies": {
-        "azle": "0.19.0"
+        "azle": "0.19.0",
+        "moment": "^2.29.4"
     }
 }
-
