@@ -14,7 +14,7 @@ After you have installed the required tools, you can move on to the next step.
 1. **Clone the repository:**
    ```bash
    https://github.com/Chelle007/cinema_ticket_ICP.git
-   cd cinena_ticket_ICP
+   cd cinema_ticket_ICP
 
 2. **Install dependencies:**
    ```bash
