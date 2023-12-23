@@ -1,47 +1,65 @@
 # cinema_ticket_ICP
 
-Welcome to your first Azle project! This example project will help you to deploy your first canister (application) to the Internet Computer (IC) decentralized cloud. It is a simple getter/setter canister. You can always refer to [The Azle Book](https://demergent-labs.github.io/azle/) for more in-depth documentation.
+## Overview
 
-`dfx` is the tool you will use to interact with the IC locally and on mainnet. If you don't already have it installed:
+Simple cinema movie ticketing using Azle in Typescript. The smart contract will generate the schedule for each movie added and allows user to book the ticket.
 
-```bash
-npm run dfx_install
-```
+## Prerequisites
 
-Next you will want to start a replica, which is a local instance of the IC that you can deploy your canisters to:
+Follow these instructions from the Azle Book [to install all the required tools and set up your environment](https://demergent-labs.github.io/azle/installation.html). You can skip this step if you have already installed the required tools.
+After you have installed the required tools, you can move on to the next step.
 
-```bash
-npm run replica_start
-```
+### Installation
 
-If you ever want to stop the replica:
+1. **Clone the repository:**
+   ```bash
+   https://github.com/Chelle007/cinema_ticket_ICP.git
+   cd cinena_ticket_ICP
 
-```bash
-npm run replica_stop
-```
+2. **Install dependencies:**
+   ```bash
+   npm install
 
-Now you can deploy your canister locally:
+3. **Start the local replica:**
+   ```bash
+   dfx start --clean --background
 
-```bash
-npm install
-npm run canister_deploy_local
-```
+4. **Deploy the canister locally:**
+   ```bash
+   dfx deploy
 
-To call the methods on your canister:
+## Functions
 
-```bash
-npm run canister_call_get_message
-npm run canister_call_set_message
-```
+### `addMovie: update([text, nat32, int32, text, int32, int32], Result(Movie, CinemaTicketError), (name, price, durationMinutes, firstShowTime, showAmount, seatAmount)`
 
-If you run the above commands and then call `npm run canister_call_get_message` you should see:
+- Adds a movie into movie list.
+- durationMinutes = movie duration in minutes, it must not exceed 12 hours(720 minutes).
+- firstShowTime = the first schedule/start time of movie in a day. Must be inputted in 'HH:mm' format.
+- showAmount = the amount of movie is played in a day.
+- Generates schedule based on the durationMinutes, firstShowTime, and showAmount and add it to schedule list. Each show time is separated by 30 minutes for break/cleaning the studio.
 
-```bash
-("Hello world!")
-```
+### `deleteMovie: update([Principal], Result(Movie, CinemaTicketError), (movieId)`
 
-Assuming you have [created a cycles wallet](https://internetcomputer.org/docs/current/developer-docs/quickstart/network-quickstart) and funded it with cycles, you can deploy to mainnet like this:
+- Deletes movie from movie list.
+- Deletes the schedule of movie from schedule list.
 
-```bash
-npm run canister_deploy_mainnet
-```
+### `getMovieList: query([], Vec(Movie), ()`
+
+- Retrieves the list of movie.
+
+### `getScheduleList: query([], Vec(Schedule), ()`
+
+- Retrieves the list of schedule.
+    
+### `getMovieDetails: query([Principal], Opt(Movie), (movieId)`
+
+- Retrieves the details of movie (id, name, price, duration in minutes, first show time, show amount, seat amount).
+
+### `getScheduleDetails: query([Principal], Opt(Schedule), (scheduleId)`
+
+- Retrieves the details of schedule (id, movie id, start time, end time, available seats)
+
+### `bookTicket: update([Principal, int32], Result(Schedule, CinemaTicketError), (scheduleId, seats)`
+
+- Books ticket for movie in specific schedule. User can input the amount of seats that user want to book, but can not exceed the amount of available seats.
+- Reduces the amount of available seats based on the amount of seats that is booked.
