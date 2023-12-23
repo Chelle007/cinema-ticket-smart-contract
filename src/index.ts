@@ -25,6 +25,7 @@ const Movie = Record({
     firstShowTime: text,
     showAmount: int32,
     seatAmount: int32,
+    scheduleIds: Vec(Principal)
 })
 type Movie = typeof Movie.tsType;
 
@@ -34,17 +35,18 @@ const Schedule = Record({
     startTime: text,
     endTime: text,
     availableSeat: int32,
-    validity: bool,
+    validity: bool
 })
 type Schedule = typeof Schedule.tsType;
 
 const CinemaTicketError = Variant({
     MovieDoesNotExist: Principal,
     NoAvailableSeat: text,
-    notPositiveInt: text,
-    timeFormatError: text,
-    durationError: text,
-    showAmountError: text
+    NotPositiveInt: text,
+    TimeFormatError: text,
+    DurationError: text,
+    ShowAmountError: text,
+    ScheduleDoesNotExist: Principal
 });
 type CinemaTicketError = typeof CinemaTicketError.tsType;
 
@@ -58,38 +60,39 @@ export default Canister({
         // CHECKING ERROR
         if (durationMinutes <= 0 || showAmount <= 0 || seatAmount <= 0) {
             return Err({
-                notPositiveInt: "durationMinutes, showAmount, seatAmount must be positive integer."
+                NotPositiveInt: "durationMinutes, showAmount, seatAmount must be positive integer."
             })
         }
         if (isValidTimeFormat(firstShowTime) == false) {
             return Err({
-                timeFormatError: "Please use 'HH:mm' format to input firstShowTime."
+                TimeFormatError: "Please use 'HH:mm' format to input firstShowTime."
             })
         }
 
         if (durationMinutes > 720) {
             return Err({
-                durationError: "The movie duration should be less than 12 hours(720 minutes)."
+                DurationError: "The movie duration should be less than 12 hours(720 minutes)."
             })
         }
 
         const maxAmount = (timeToMinutes('24:00') - timeToMinutes(firstShowTime))/(durationMinutes+30); //add 30 minutes as break for cleaning the studio
         if (showAmount > maxAmount) {
             return Err({
-                showAmountError: `The inputted amount exceeds the maximum show amount allowed for one day(${maxAmount}).`
+                ShowAmountError: `The inputted amount exceeds the maximum show amount allowed for one day(${maxAmount}).`
             })
         }
 
         // INSERT TO MOVIELIST
         const movieId = generateId();
-        const movie: Movie = {
+        let movie: Movie = {
             movieId,
             name,
             price,
             durationMinutes,
             firstShowTime,
             showAmount,
-            seatAmount
+            seatAmount,
+            scheduleIds: []
         }
         movieList.insert(movieId, movie);
 
@@ -98,6 +101,7 @@ export default Canister({
             const scheduleId = generateId();
             const startTime = minutesToTime(timeToMinutes(firstShowTime) + i*(durationMinutes+30));
             const endTime = minutesToTime(timeToMinutes(startTime) + durationMinutes);
+            
             const schedule: Schedule = {
                 scheduleId,
                 movieId,
@@ -105,28 +109,36 @@ export default Canister({
                 endTime,
                 availableSeat : seatAmount,
                 validity : true,
-            }
+            };
             scheduleList.insert(scheduleId, schedule);
+
+            const updatedMovie: Movie = {
+                ...movie,
+                scheduleIds: [...movie.scheduleIds, schedule.scheduleId]
+            };
+
+            movieList.insert(updatedMovie.movieId, updatedMovie);
         }
 
         return Ok(movie.movieId);
     }),
 
-    deleteMovie: update([Principal], Result(Movie, CinemaTicketError), (movieId) => {
+    deleteMovie: update([Principal], Result(Principal, CinemaTicketError), (movieId) => {
         const movieOpt = movieList.get(movieId);
+
         if ('None' in movieOpt) {
             return Err({
                 MovieDoesNotExist: movieId
             });
         }
-        const movie = movieOpt.Some;
-        movieList.remove(movie.movieId);
 
-        const allSchedule = scheduleList.values();
-        const filteredSchedule = allSchedule.filter(
-            (schedule: typeof Schedule) =>
-            schedule.movieId == movieId
-        );
+        const movie = movieOpt.Some;
+
+        movie.scheduleIds.forEach((scheduleId) => {
+            scheduleList.remove(scheduleId);
+        })
+
+        movieList.remove(movie.movieId);
 
         return Ok(movie.movieId);
     }),
@@ -139,41 +151,39 @@ export default Canister({
         return scheduleList.values();
     }),
 
-    getMovieDetails: query([Principal], Opt(Movie), (id) => {
-        return movieList.get(id);
+    getMovieDetails: query([Principal], Opt(Movie), (movieId) => {
+        return movieList.get(movieId);
     }),
 
-    getMovieSchedule: query([Principal], Opt(Schedule), (id) => {
-        return scheduleList.get(id); //not finished
+    getScheduleDetails: query([Principal], Opt(Schedule), (scheduleId) => {
+        return scheduleList.get(scheduleId)
     }),
-
-    /*
-    bookTicket: update([Principal, nat32], Result(Movie, CinemaTicketError), (id, seats) => {
-        const movieOpt = movieList.get(id);
-        if ('None' in movieOpt) {
+    
+    bookTicket: update([Principal, nat32], Result(Principal, CinemaTicketError), (scheduleId, seats) => {
+        const scheduleOpt = scheduleList.get(scheduleId);
+        if ('None' in scheduleOpt) {
             return Err({
-                MovieDoesNotExist: id
+                ScheduleDoesNotExist: scheduleId
             });
         }
 
-        const movie = movieOpt.Some;
-        if (movie.availableSeats < seats) {
+        const schedule = scheduleOpt.Some;
+        if (schedule.availableSeat < seats) {
             return Err({
                 NoAvailableSeat: "No enough available seats."
             });
         }
 
         else {
-            let newmovie = movie;
-            newmovie.availableSeats -= seats;
-            movieList.remove(movie.id);
-            movieList.insert(newmovie.id, newmovie);
+            let updatedSchedule = schedule;
+            updatedSchedule.availableSeat -= seats;
+            scheduleList.remove(schedule.scheduleId);
+            scheduleList.insert(updatedSchedule.scheduleId, updatedSchedule);
 
-            return Ok(newmovie);
+            return Ok(updatedSchedule.scheduleId);
         }
 
     })
-    */
 });
 
 function generateId(): Principal {

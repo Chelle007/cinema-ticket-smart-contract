@@ -1,3 +1,9 @@
 service: () -> {
-    addMovie: (text, nat32, int32, text, int32, int32) -> (variant {Ok:principal; Err:variant {timeFormatError:text; showAmountError:text; durationError:text; MovieDoesNotExist:principal; NoAvailableSeat:text; notPositive:text}});
+    addMovie: (text, nat32, int32, text, int32, int32) -> (variant {Ok:principal; Err:variant {NotPositiveInt:text; TimeFormatError:text; MovieDoesNotExist:principal; NoAvailableSeat:text; ShowAmountError:text; ScheduleDoesNotExist:principal; DurationError:text}});
+    bookTicket: (principal, nat32) -> (variant {Ok:principal; Err:variant {NotPositiveInt:text; TimeFormatError:text; MovieDoesNotExist:principal; NoAvailableSeat:text; ShowAmountError:text; ScheduleDoesNotExist:principal; DurationError:text}});
+    deleteMovie: (principal) -> (variant {Ok:principal; Err:variant {NotPositiveInt:text; TimeFormatError:text; MovieDoesNotExist:principal; NoAvailableSeat:text; ShowAmountError:text; ScheduleDoesNotExist:principal; DurationError:text}});
+    getMovieDetails: (principal) -> (opt record {seatAmount:int32; showAmount:int32; name:text; movieId:principal; durationMinutes:int32; firstShowTime:text; price:nat32; scheduleIds:vec principal}) query;
+    getMovieList: () -> (vec record {seatAmount:int32; showAmount:int32; name:text; movieId:principal; durationMinutes:int32; firstShowTime:text; price:nat32; scheduleIds:vec principal}) query;
+    getScheduleDetails: (principal) -> (opt record {validity:bool; startTime:text; endTime:text; scheduleId:principal; movieId:principal; availableSeat:int32}) query;
+    getScheduleList: () -> (vec record {validity:bool; startTime:text; endTime:text; scheduleId:principal; movieId:principal; availableSeat:int32}) query;
 }
