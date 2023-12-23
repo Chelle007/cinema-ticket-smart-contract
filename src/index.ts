@@ -159,11 +159,8 @@ export default Canister({
         return Ok(movie);
     }),
 
-    getMovieList: query([], Result(Vec(Movie), text), () => {
-        if (movieList.isEmpty()) {
-            return Err("Empty")
-        }
-        return Ok(movieList.values());
+    getMovieList: query([], Vec(Movie), () => {
+        return movieList.values();
     }),
 
     getScheduleList: query([], Vec(Schedule), () => {
@@ -175,7 +172,7 @@ export default Canister({
     }),
 
     getScheduleDetails: query([Principal], Opt(Schedule), (scheduleId) => {
-        return scheduleList.get(scheduleId)
+        return scheduleList.get(scheduleId);
     }),
     
     bookTicket: update([Principal, int32], Result(Schedule, CinemaTicketError), (scheduleId, seats) => {
