@@ -34,8 +34,7 @@ const Schedule = Record({
     movieId: Principal,
     startTime: text,
     endTime: text,
-    availableSeat: int32,
-    validity: bool
+    availableSeat: int32
 })
 type Schedule = typeof Schedule.tsType;
 
@@ -51,7 +50,7 @@ const CinemaTicketError = Variant({
 type CinemaTicketError = typeof CinemaTicketError.tsType;
 
 let movieList = StableBTreeMap<Principal, Movie>(0);
-let scheduleList = StableBTreeMap<Principal, Schedule>(0);
+let scheduleList = StableBTreeMap<Principal, Schedule>(1);
 
 export default Canister({
 
@@ -94,23 +93,33 @@ export default Canister({
             seatAmount,
             scheduleIds: []
         }
-        movieList.insert(movieId, movie);
-
+        movieList.insert(movie.movieId, movie);
+        
         // GENERATE SCHEDULE
         for (let i = 0; i<showAmount; i++) {
+            const movieOpt = movieList.get(movieId);
+
+            if ('None' in movieOpt) {
+                return Err({
+                    MovieDoesNotExist: movieId
+                });
+            }
+
+            const movie = movieOpt.Some;
+
             const scheduleId = generateId();
-            const startTime = minutesToTime(timeToMinutes(firstShowTime) + i*(durationMinutes+30));
+            const startTime = minutesToTime(timeToMinutes(movie.firstShowTime) + i*(durationMinutes+30));
             const endTime = minutesToTime(timeToMinutes(startTime) + durationMinutes);
+            const availableSeat = movie.seatAmount;
             
             const schedule: Schedule = {
                 scheduleId,
                 movieId,
                 startTime,
                 endTime,
-                availableSeat : seatAmount,
-                validity : true,
+                availableSeat
             };
-            scheduleList.insert(scheduleId, schedule);
+            scheduleList.insert(schedule.scheduleId, schedule);
 
             const updatedMovie: Movie = {
                 ...movie,
@@ -177,7 +186,6 @@ export default Canister({
         else {
             let updatedSchedule = schedule;
             updatedSchedule.availableSeat -= seats;
-            scheduleList.remove(schedule.scheduleId);
             scheduleList.insert(updatedSchedule.scheduleId, updatedSchedule);
 
             return Ok(updatedSchedule.scheduleId);
