@@ -5,7 +5,6 @@ import {
     Record,
     text,
     nat32,
-    bool,
     int32,
     StableBTreeMap,
     Err,
@@ -54,9 +53,9 @@ let scheduleList = StableBTreeMap<Principal, Schedule>(1);
 
 export default Canister({
 
-    addMovie: update([text, nat32, int32, text, int32, int32], Result(Principal, CinemaTicketError), (name, price, durationMinutes, firstShowTime, showAmount, seatAmount) => {
+    addMovie: update([text, nat32, int32, text, int32, int32], Result(Movie, CinemaTicketError), (name, price, durationMinutes, firstShowTime, showAmount, seatAmount) => {
         
-        // CHECKING ERROR
+        // CHECK ERROR
         if (durationMinutes <= 0 || showAmount <= 0 || seatAmount <= 0) {
             return Err({
                 NotPositiveInt: "durationMinutes, showAmount, seatAmount must be positive integer."
@@ -83,7 +82,7 @@ export default Canister({
 
         // INSERT TO MOVIELIST
         const movieId = generateId();
-        let movie: Movie = {
+        const movie: Movie = {
             movieId,
             name,
             price,
@@ -91,8 +90,8 @@ export default Canister({
             firstShowTime,
             showAmount,
             seatAmount,
-            scheduleIds: []
-        }
+            scheduleIds: [],
+        };
         movieList.insert(movie.movieId, movie);
         
         // GENERATE SCHEDULE
@@ -111,7 +110,7 @@ export default Canister({
             const startTime = minutesToTime(timeToMinutes(movie.firstShowTime) + i*(durationMinutes+30));
             const endTime = minutesToTime(timeToMinutes(startTime) + durationMinutes);
             const availableSeat = movie.seatAmount;
-            
+
             const schedule: Schedule = {
                 scheduleId,
                 movieId,
@@ -128,11 +127,19 @@ export default Canister({
 
             movieList.insert(updatedMovie.movieId, updatedMovie);
         }
-
-        return Ok(movie.movieId);
+        
+        const movieOpt = movieList.get(movieId);
+        if ('None' in movieOpt) {
+            return Err({
+                MovieDoesNotExist: movieId
+            });
+        }
+        const generatedMovie = movieOpt.Some;
+        
+        return Ok(generatedMovie);
     }),
 
-    deleteMovie: update([Principal], Result(Principal, CinemaTicketError), (movieId) => {
+    deleteMovie: update([Principal], Result(Movie, CinemaTicketError), (movieId) => {
         const movieOpt = movieList.get(movieId);
 
         if ('None' in movieOpt) {
@@ -149,11 +156,14 @@ export default Canister({
 
         movieList.remove(movie.movieId);
 
-        return Ok(movie.movieId);
+        return Ok(movie);
     }),
 
-    getMovieList: query([], Vec(Movie), () => {
-        return movieList.values();
+    getMovieList: query([], Result(Vec(Movie), text), () => {
+        if (movieList.isEmpty()) {
+            return Err("Empty")
+        }
+        return Ok(movieList.values());
     }),
 
     getScheduleList: query([], Vec(Schedule), () => {
@@ -168,12 +178,20 @@ export default Canister({
         return scheduleList.get(scheduleId)
     }),
     
-    bookTicket: update([Principal, nat32], Result(Principal, CinemaTicketError), (scheduleId, seats) => {
+    bookTicket: update([Principal, int32], Result(Schedule, CinemaTicketError), (scheduleId, seats) => {
+
+        // CHECK ERROR
         const scheduleOpt = scheduleList.get(scheduleId);
         if ('None' in scheduleOpt) {
             return Err({
                 ScheduleDoesNotExist: scheduleId
             });
+        }
+
+        if (seats <= 0) {
+            return Err({
+                NotPositiveInt: "seats must be positive integer."
+            })
         }
 
         const schedule = scheduleOpt.Some;
@@ -183,14 +201,12 @@ export default Canister({
             });
         }
 
-        else {
-            let updatedSchedule = schedule;
-            updatedSchedule.availableSeat -= seats;
-            scheduleList.insert(updatedSchedule.scheduleId, updatedSchedule);
+        // UPDATE AVAILABLESEATS
+        let updatedSchedule = schedule;
+        updatedSchedule.availableSeat -= seats;
+        scheduleList.insert(updatedSchedule.scheduleId, updatedSchedule);
 
-            return Ok(updatedSchedule.scheduleId);
-        }
-
+        return Ok(updatedSchedule);
     })
 });
 
