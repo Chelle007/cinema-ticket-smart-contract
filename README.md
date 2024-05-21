@@ -1,4 +1,4 @@
-# cinema_ticket_ICP
+# cinema-ticket-smart-contract
 
 ## Overview
 
